@@ -88,7 +88,7 @@ class AuthenticationHelper {
     private String secretKey;
     private String region;
 
-    AuthenticationHelper(String userPoolID, String clientid, String secretKey) {
+    AuthenticationHelper(String userPoolID, String clientid, String secretKey, String region) {
         do {
             a = new BigInteger(EPHEMERAL_KEY_LENGTH, SECURE_RANDOM).mod(N);
             A = g.modPow(a, N);
@@ -98,30 +98,6 @@ class AuthenticationHelper {
         this.clientId = clientid;
         this.region = region;
         this.secretKey = secretKey;
-
-        Properties prop = new Properties();
-        InputStream input = null;
-
-        try {
-            input = getClass().getClassLoader().getResourceAsStream("config.properties");
-
-            // load a properties file
-            prop.load(input);
-
-            // Read the property values
-            this.region = prop.getProperty("REGION");
-
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        } finally {
-            if (input != null) {
-                try {
-                    input.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
     }
 
     private BigInteger getA() {
@@ -177,25 +153,20 @@ class AuthenticationHelper {
         String authresult = null;
 
         InitiateAuthRequest initiateAuthRequest = initiateUserSrpAuthRequest(username);
-        try {
-            AnonymousAWSCredentials awsCreds = new AnonymousAWSCredentials();
-            AWSCognitoIdentityProvider cognitoIdentityProvider = AWSCognitoIdentityProviderClientBuilder
-                    .standard()
-                    .withCredentials(new AWSStaticCredentialsProvider(awsCreds))
-                    .withRegion(Regions.fromName(this.region))
-                    .build();
-            InitiateAuthResult initiateAuthResult = cognitoIdentityProvider.initiateAuth(initiateAuthRequest);
-            if (ChallengeNameType.PASSWORD_VERIFIER.toString().equals(initiateAuthResult.getChallengeName())) {
-                RespondToAuthChallengeRequest challengeRequest = userSrpAuthRequest(initiateAuthResult, password,
-                        initiateAuthRequest.getAuthParameters().get("SECRET_HASH"));
-                RespondToAuthChallengeResult result = cognitoIdentityProvider.respondToAuthChallenge(challengeRequest);
-                //System.out.println(result);
-                System.out.println(CognitoJWTParser.getPayload(result.getAuthenticationResult().getIdToken()));
-                authresult = result.getAuthenticationResult().getIdToken();
-            }
-        } catch (final Exception ex) {
-            System.out.println("Exception" + ex);
-
+        AnonymousAWSCredentials awsCreds = new AnonymousAWSCredentials();
+        AWSCognitoIdentityProvider cognitoIdentityProvider = AWSCognitoIdentityProviderClientBuilder
+                .standard()
+                .withCredentials(new AWSStaticCredentialsProvider(awsCreds))
+                .withRegion(Regions.fromName(this.region))
+                .build();
+        InitiateAuthResult initiateAuthResult = cognitoIdentityProvider.initiateAuth(initiateAuthRequest);
+        if (ChallengeNameType.PASSWORD_VERIFIER.toString().equals(initiateAuthResult.getChallengeName())) {
+            RespondToAuthChallengeRequest challengeRequest = userSrpAuthRequest(initiateAuthResult, password,
+                    initiateAuthRequest.getAuthParameters().get("SECRET_HASH"));
+            RespondToAuthChallengeResult result = cognitoIdentityProvider.respondToAuthChallenge(challengeRequest);
+            //System.out.println(result);
+            System.out.println(CognitoJWTParser.getPayload(result.getAuthenticationResult().getIdToken()));
+            authresult = result.getAuthenticationResult().getIdToken();
         }
         return authresult;
     }
